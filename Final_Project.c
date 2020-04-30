@@ -28,6 +28,8 @@ void LCD_Write();
 
 //Receive transmit functions
 void UART0_init(void);
+void UART0Tx(char c);
+void UART0_puts(char* s);
 //TODO include timer initialization function here
 //TODO include ADC initialization function here
 
@@ -51,9 +53,13 @@ int main(void) {
     //TODO Step 2 get Keypad working with interrupt
     //TODO Step 3 display output on UART from Keypad
 
-    LCD_init();		//Initialize LCD
+ //   LCD_init();		//Initialize LCD
     UART0_init();	//Initialize UART
     ADC0_init();	//Initialize ADC
+
+    //test of UART
+   	UART0_puts(CharsDisplayed);
+
 
     while(1)
     {
@@ -74,8 +80,8 @@ void UART0_init(void) {
     UART0->C1 = 0x00;       	/* 8-bit data */
     UART0->C2 = 0x08 | 1 << 2;	//enable transmit and receive
 
-    SIM->SCGC5 |= 0x0200;   	/* enable clock for PORTA */
-    PORTA->PCR[2] = 0x0200; 	/* make PTA2 UART0_Tx pin */
+    SIM->SCGC5 |= 0x0200;   	//enable clock for PORTA */
+    PORTA->PCR[2] = 0x0200; 	//make PTA2 UART0_Tx pin */
 }
 
 void UART0Tx(char c) {
@@ -147,10 +153,10 @@ void ADC0_init(void)
 //delay function that used system clock instead of for loop
 void delayMs(int msec){
 	while(msec >= 0){							//make sure user entered positive time value
-		SysTick->LOAD = msec * 48000;			//TODO check if this value is right
+		SysTick->LOAD = msec * 48000;			//set systick for milliseconds
 		SysTick->CTRL = 5;						//enable SysTick timer and use system clock
 		while((SysTick->CTRL & 0x1000) == 0){}	//wait for clock to stop
-		SysTickCTRL = 0;
+		SysTick->CTRL = 0;
 		break;
 	}
 
