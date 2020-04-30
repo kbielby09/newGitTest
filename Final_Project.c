@@ -12,11 +12,22 @@
 #define RW 2    /* BIT1 mask */
 #define EN 4    /* BIT2 mask */
 
-void keypad_init(void);
+//LED prototype functions
 void LED_init(void);
 void LED_set(int value);
-char hexKeys[] = {0x0,'A','3','2','1','B','6','5','4','C','9','8','7','D','E','0','F'};
+
+//keypad prototype functions
+void keypad_init(void);
+char keypad_getkey(void);
+
+//prompts for method chosen
 char CharsDisplayed[] = "Method 1:";//array acting as a buffer for displayed digits
+char Method1[] = "Method 1";
+char Method2[] = "Method 2";
+char Method3[] = "Method 3";
+char Method4[] = "Method 4";
+char Method5[] = "Method 5";
+
 void UpdateBuffer(int, int);
 
 //LCD display function prototype
@@ -49,7 +60,8 @@ int main(void) {
     keypad_init();
     __enable_irq();
 
-    //TODO Step 1 get UART working for receive and transmit
+    //TODO Test receive function of UART might need interrupt
+    //TODO Get Keypad working with polling function
     //TODO Step 2 get Keypad working with interrupt
     //TODO Step 3 display output on UART from Keypad
 
@@ -57,8 +69,26 @@ int main(void) {
     UART0_init();	//Initialize UART
     ADC0_init();	//Initialize ADC
 
-    //test of UART
-   	UART0_puts(CharsDisplayed);
+    //TODO test keypad with polling
+    key = keypad_getkey();
+    if(key == 4){
+    	UART0_puts(Method1);
+    }
+    if(key == 3){
+    	UART0_puts(Method2);
+    }
+    if(key == 2){
+    	UART0_puts(Method3);
+    }
+    if(key == 8){
+    	UART0_puts(Method4);
+    }
+    if(key == 7){
+    	UART0_puts(Method5);
+    }
+    if(key == 14){
+    	UART0_puts(CharsDisplayed);
+    }
 
 
     while(1)
@@ -199,25 +229,80 @@ void PORTA_IRQHandler(void){
 	}
 }
 
+//TODO delete this function and modify for port a
+char keypad_getkey(void)
+{
+    int row, col;
+    const char row_select[] = {0x01, 0x02, 0x04, 0x08}; //TODO change these
 
+    /* check to see any key pressed */
+    PTA->PDDR |= 0x0F;          /* enable all rows */
+    PTA->PCOR = 0x0F;
+    delayMs(200);                 /* wait for signal return */
+    col = PTA->PDIR & 0xF0;     /* read all columns */
+    PTC->PDDR = 0;              /* disable all rows */
+    if (col == 0xF0)
+        return 0;               /* no key pressed */
 
-/* this function initializes PortC that is connected to the keypad.
- * All pins are configured as GPIO input pin with pull-up enabled.
- */
+    /* If a key is pressed, it gets here to find out which key.
+     * It activates one row at a time and read the input to see
+     * which column is active. */
+    for (row = 0; row < 4; row++)
+    {
+        PTC->PDDR = 0;                  /* disable all rows */
+        PTC->PDDR |= row_select[row];   /* enable one row */
+        PTC->PCOR = row_select[row];    /* drive the active row low */
+        delayUs(2);                     /* wait for signal to settle */
+        col = PTC->PDIR & 0xF0;         /* read all columns */
+        if (col != 0xF0) break;         /* if one of the input is low, some key is pressed. */
+    }
+    PTC->PDDR = 0;                      /* disable all rows */
+    if (row == 4)
+        return 0;                       /* if we get here, no key is pressed */
+
+    /* gets here when one of the rows has key pressed, check which column it is */
+    if (col == 0xE0) return row * 4 + 1;    /* key in column 0 */
+    if (col == 0xD0) return row * 4 + 2;    /* key in column 1 */
+    if (col == 0xB0) return row * 4 + 3;    /* key in column 2 */
+    if (col == 0x70) return row * 4 + 4;    /* key in column 3 */
+
+    return 0;   /* just to be safe */
+}
+
+//TODO delete this function
 void keypad_init(void)
 {
     SIM->SCGC5   |= 1 << 9;       /* enable clock to Port A */
     //enable pins as GPIO
-    PORTA->PCR[17] = 0x103 | 0x90000;      /* make PTA17 pin as GPIO and enable pullup and enable rising edge interrupt*/
-    PORTA->PCR[16] = 0x103 | 0x90000;      /* make PTA16 pin as GPIO and enable pullup and enable rising edge interrupt*/
-    PORTA->PCR[13] = 0x103 | 0x90000;      /* make PTA13 pin as GPIO and enable pullup and enable rising edge interrupt*/
-    PORTA->PCR[12] = 0x103 | 0x90000;      /* make PTA12 pin as GPIO and enable pullup and enable rising edge interrupt*/
+    PORTA->PCR[17] = 0x103;     /* make PTA17 pin as GPIO and enable pullup and enable rising edge interrupt*/
+    PORTA->PCR[16] = 0x103;     /* make PTA16 pin as GPIO and enable pullup and enable rising edge interrupt*/
+    PORTA->PCR[13] = 0x103;		/* make PTA13 pin as GPIO and enable pullup and enable rising edge interrupt*/
+    PORTA->PCR[12] = 0x103;     /* make PTA12 pin as GPIO and enable pullup and enable rising edge interrupt*/
     PORTA->PCR[5] = 0x103;      /* make PTA5 pin as GPIO and enable pullup*/
     PORTA->PCR[4] = 0x103;      /* make PTA4 pin as GPIO and enable pullup*/
     PORTA->PCR[2] = 0x103;      /* make PTA2 pin as GPIO and enable pullup*/
     PORTA->PCR[1] = 0x103;      /* make PTA1 pin as GPIO and enable pullup*/
     PTA->PDDR |= 1 << 5 | 1 << 4 | 1 << 2 | 1 << 1; //make PTA5,4,2,1 as output pins
 }
+
+//TODO uncomment this code for interrupt keypad and check functionality
+/* this function initializes PortC that is connected to the keypad.
+ * All pins are configured as GPIO input pin with pull-up enabled.
+ */
+//void keypad_init(void)
+//{
+//    SIM->SCGC5   |= 1 << 9;       /* enable clock to Port A */
+//    //enable pins as GPIO
+//    PORTA->PCR[17] = 0x103 | 0x90000;      /* make PTA17 pin as GPIO and enable pullup and enable rising edge interrupt*/
+//    PORTA->PCR[16] = 0x103 | 0x90000;      /* make PTA16 pin as GPIO and enable pullup and enable rising edge interrupt*/
+//    PORTA->PCR[13] = 0x103 | 0x90000;      /* make PTA13 pin as GPIO and enable pullup and enable rising edge interrupt*/
+//    PORTA->PCR[12] = 0x103 | 0x90000;      /* make PTA12 pin as GPIO and enable pullup and enable rising edge interrupt*/
+//    PORTA->PCR[5] = 0x103;      /* make PTA5 pin as GPIO and enable pullup*/
+//    PORTA->PCR[4] = 0x103;      /* make PTA4 pin as GPIO and enable pullup*/
+//    PORTA->PCR[2] = 0x103;      /* make PTA2 pin as GPIO and enable pullup*/
+//    PORTA->PCR[1] = 0x103;      /* make PTA1 pin as GPIO and enable pullup*/
+//    PTA->PDDR |= 1 << 5 | 1 << 4 | 1 << 2 | 1 << 1; //make PTA5,4,2,1 as output pins
+//}
 
 /*This function adds the characters pressed to the character buffer*/
 void UpdateBuffer(int row, int col){
