@@ -21,7 +21,7 @@ void keypad_init(void);
 char keypad_getkey(void);
 
 //prompts for method chosen
-char CharsDisplayed[] = "Method 1:";//array acting as a buffer for displayed digits
+char CharsDisplayed[] = "Method:";//array acting as a buffer for displayed digits
 char Method1[] = "Method 1";
 char Method2[] = "Method 2";
 char Method3[] = "Method 3";
@@ -37,10 +37,13 @@ void LCD_data(unsigned char data);
 void LCD_init(void);
 void LCD_Write();
 
-//Receive transmit functions
+//Receive transmit functions for UART0
 void UART0_init(void);
 void UART0Tx(char c);
 void UART0_puts(char* s);
+
+void delayMs(int);
+
 //TODO include timer initialization function here
 //TODO include ADC initialization function here
 
@@ -56,21 +59,23 @@ int main(void) {
     BOARD_InitBootPeripherals();
   	/* Init FSL debug console. */
     BOARD_InitDebugConsole();
+
+    //peripheral initialization
     __disable_irq();
     keypad_init();
     __enable_irq();
+    //   LCD_init();		//Initialize LCD
+        UART0_init();	//Initialize UART
+      //  ADC0_init();	//Initialize ADC TODO move the initialization functions
+
 
     //TODO Test receive function of UART might need interrupt
-    //TODO Get Keypad working with polling function
     //TODO Step 2 get Keypad working with interrupt
     //TODO Step 3 display output on UART from Keypad
+    //TODO figure out servo motor and DC motor
+    //TODO figure out PWM signal
 
- //   LCD_init();		//Initialize LCD
-    UART0_init();	//Initialize UART
-  //  ADC0_init();	//Initialize ADC TODO move the initialization functions
-
-
-
+        UART0_puts(Method1);
 
     while(1)
     {
@@ -98,6 +103,118 @@ int main(void) {
     }//end while
 }
 
+////TODO delete this function and modify for port a
+//char keypad_getkey(void)
+//{
+//    int row, col;
+//    const char row_select[] = {1 << 1, 1 << 2, 1 << 4, 1 << 5};//0x01, 0x02, 0x04, 0x08}; //TODO change these
+//
+//    /* check to see any key pressed */
+//    PTA->PDDR |= 1 << 1 | 1 << 2 | 1 << 4 | 1 << 5;          /* enable all rows */
+//    PTA->PCOR = 1 << 1 | 1 << 2 | 1 << 4 | 1 << 5;
+//    delayMs(200);                 /* wait for signal return */
+//    col = PTA->PDIR & (1 << 12 | 1 << 13 | 1 << 16 | 1 << 17);     /* read all columns */
+//    PTA->PDDR = 0;              /* disable all rows */
+//    if (col == 0x33000)
+//        return 0;               /* no key pressed */
+//
+//    /* If a key is pressed, it gets here to find out which key.
+//     * It activates one row at a time and read the input to see
+//     * which column is active. */
+//    for (row = 0; row < 4; row++)
+//    {
+//        PTA->PDDR = 0;                  /* disable all rows */
+//        PTA->PDDR |= row_select[row];   /* enable one row */
+//        PTA->PCOR = row_select[row];    /* drive the active row low */
+//        delayMs(200);                     /* wait for signal to settle */
+//        col = PTA->PDIR & 0x33000;         /* read all columns */
+//        if (col != 0x33000) break;         /* if one of the input is low, some key is pressed. */
+//    }
+//    PTA->PDDR = 0;                      /* disable all rows */
+//    if (row == 4)
+//        return 0;                       /* if we get here, no key is pressed */
+//
+//    /* gets here when one of the rows has key pressed, check which column it is */
+//    if (col == 1 << 12) return row * 4 + 1;    /* key in column 0 */
+//    if (col == 1 << 13) return row * 4 + 2;    /* key in column 1 */
+//    if (col == 1 << 16) return row * 4 + 3;    /* key in column 2 */
+//    if (col == 1 << 17) return row * 4 + 4;    /* key in column 3 */
+//
+//    return 0;   /* just to be safe */
+//}
+//
+////TODO delete this function
+//void keypad_init(void)
+//{
+//    SIM->SCGC5   |= 1 << 9;       /* enable clock to Port A */
+//    //enable pins as GPIO
+//    PORTA->PCR[17] = 0x103;     ///* make PTA17 pin as GPIO and enable pullup
+//    PORTA->PCR[16] = 0x103;     ///* make PTA16 pin as GPIO and enable pullup
+//    PORTA->PCR[13] = 0x103;		///* make PTA13 pin as GPIO and enable pullup
+//    PORTA->PCR[12] = 0x103;     ///* make PTA12 pin as GPIO and enable pullup
+//    PORTA->PCR[5] = 0x103;      ///* make PTA5 pin as GPIO and enable pullup*/
+//    PORTA->PCR[4] = 0x103;      ///* make PTA4 pin as GPIO and enable pullup*/
+//    PORTA->PCR[2] = 0x103;      ///* make PTA2 pin as GPIO and enable pullup*/
+//    PORTA->PCR[1] = 0x103;      ///* make PTA1 pin as GPIO and enable pullup*/
+//    PTA->PDDR |= 1 << 5 | 1 << 4 | 1 << 2 | 1 << 1; //make PTA5,4,2,1 as output pins
+//}
+
+//TODO delete this function and modify for port a
+char keypad_getkey(void)
+{
+    int row, col;
+    const char row_select[] = {1 << 7, 1 << 6, 1 << 1, 1 << 3};//0x01, 0x02, 0x04, 0x08}; //TODO change these
+
+    /* check to see any key pressed */
+    PTD->PDDR |= 1 << 7 | 1 << 6 | 1 << 1 | 1 << 3;          /* enable all rows */
+    PTD->PCOR = 1 << 7 | 1 << 6 | 1 << 1 | 1 << 3;
+    delayMs(200);                 /* wait for signal return */
+    col = PTD->PDIR & (1 << 2 | 1 << 0 | 1 << 5 | 1 << 4);     /* read all columns */
+    PTD->PDDR = 0;              /* disable all rows */
+    if (col == 0x35)
+        return 0;               /* no key pressed */
+
+    /* If a key is pressed, it gets here to find out which key.
+     * It activates one row at a time and read the input to see
+     * which column is active. */
+    for (row = 0; row < 4; row++)
+    {
+        PTD->PDDR = 0;                  /* disable all rows */
+        PTD->PDDR |= row_select[row];   /* enable one row */
+        PTD->PCOR = row_select[row];    /* drive the active row low */
+        delayMs(200);                     /* wait for signal to settle */
+        col = PTD->PDIR & 0x35;         /* read all columns */
+        if (col != 0x35) break;         /* if one of the input is low, some key is pressed. */
+    }
+    PTD->PDDR = 0;                      /* disable all rows */
+    if (row == 4)
+        return 0;                       /* if we get here, no key is pressed */
+
+    /* gets here when one of the rows has key pressed, check which column it is */
+    if (col == 1 << 2) return row * 4 + 1;    /* key in column 0 */
+    if (col == 1 << 0) return row * 4 + 2;    /* key in column 1 */
+    if (col == 1 << 5) return row * 4 + 3;    /* key in column 2 */
+    if (col == 1 << 4) return row * 4 + 4;    /* key in column 3 */
+
+    return 0;   /* just to be safe */
+}
+
+//TODO delete this function change all comments
+void keypad_init(void)
+{
+    SIM->SCGC5   |= 1 << 12;       /* enable clock to Port D */
+    //enable pins as GPIO
+    PORTD->PCR[7] = 0x103;     ///* make PTA17 pin as GPIO and enable pullup
+    PORTD->PCR[6] = 0x103;     ///* make PTA16 pin as GPIO and enable pullup
+    PORTD->PCR[1] = 0x103;		///* make PTA13 pin as GPIO and enable pullup
+    PORTD->PCR[3] = 0x103;     ///* make PTA12 pin as GPIO and enable pullup
+    PORTD->PCR[2] = 0x103;      ///* make PTA5 pin as GPIO and enable pullup*/
+    PORTD->PCR[0] = 0x103;      ///* make PTA4 pin as GPIO and enable pullup*/
+    PORTD->PCR[5] = 0x103;      ///* make PTA2 pin as GPIO and enable pullup*/
+    PORTD->PCR[5] = 0x103;      ///* make PTA1 pin as GPIO and enable pullup*/
+    PTD->PDDR |= 1 << 7 | 1 << 6 | 1 << 1 | 1 << 3; //make PTA5,4,2,1 as output pins
+}
+
 //TODO double check baud rates may need 9600 baud rate
 /* initialize UART0 to transmit at 115200 Baud */
 void UART0_init(void) {
@@ -111,7 +228,7 @@ void UART0_init(void) {
     UART0->C2 = 0x08 | 1 << 2;	//enable transmit and receive
 
     SIM->SCGC5 |= 0x0200;   	//enable clock for PORTA */
-    PORTA->PCR[2] = 0x0200; 	//make PTA2 UART0_Tx pin */
+    PORTA->PCR[2] |= 0x0200; 	//make PTA2 UART0_Tx pin */
 }
 
 void UART0Tx(char c) {
@@ -120,11 +237,36 @@ void UART0Tx(char c) {
     UART0->D = c; /* send a char */
 }
 
-
 void UART0_puts(char* s) {
     while (*s != 0)         /* if not end of string */
         UART0Tx(*s++);      /* send the character through UART0 */
 }
+
+////TODO write these functions and check comments
+//void UART1_init(void){
+//	SIM->SCGC4 |= 1 << 11;   	/* enable clock for UART1 */
+//	UART1->C2 = 0;				/* turn off UART0 while changing configurations */
+//	UART1->BDH = 0x00;
+//	UART1->BDL = 0x5B;			// 9600 Baud
+//	UART1->C1 = 0x00;       	/* 8-bit data */
+//	UART1->C3 = 0X00;
+//	UART1->C2 = 0x08; //| 1 << 2;	//enable transmit and receive TODO add receive later
+//
+//	SIM->SCGC5 |= 0x1000;   	//enable clock for PORTD */
+//	PORTD->PCR[5] |= 0x300; 	//make PTD5 UART1_Tx pin */
+//}
+//
+////TODO write function and check comments
+//void UART1Tx(char c){
+//	while(!(UART1->S1 & 0x80)) {
+//	    }   /* wait for transmit buffer empty */
+//	    UART1->D = c; /* send a char */
+//}
+//
+//void UART1_puts(char* s){
+//	while (*s != 0)         /* if not end of string */
+//	        UART1Tx(*s++);      /* send the character through UART0 */
+//}
 
 //TODO double check these values and comment this function
 void ADC0_init(void)
@@ -195,95 +337,40 @@ void delayMs(int msec){
 
 
 
-//Port A interrupt handler
-void PORTA_IRQHandler(void){
-	int col, row;
-	const char row_select[] = {1 << 1, 1 << 2, 1 << 4, 1 << 5}; /* one row is active */
-	while(PORTA->ISFR & (1 << 17 | 1 << 16 | 1 << 13 | 1 << 12)){
-		//determine which row was pressed
-		for (row = 0; row < 4; row++)
-		{
-			PTA->PDDR = 0;                  /* disable all rows */
-			PTA->PDDR |= row_select[row];   /* enable one row */
-			PTA->PCOR = row_select[row];    /* drive the active row low */
-		}
+//Port A interrupt handler TODO get this working
+//void PORTA_IRQHandler(void){
+//	int col, row;
+//	const char row_select[] = {1 << 1, 1 << 2, 1 << 4, 1 << 5}; /* one row is active */
+//	while(PORTA->ISFR & (1 << 17 | 1 << 16 | 1 << 13 | 1 << 12)){
+//		//determine which row was pressed
+//		for (row = 0; row < 4; row++)
+//		{
+//			PTA->PDDR = 0;                  /* disable all rows */
+//			PTA->PDDR |= row_select[row];   /* enable one row */
+//			PTA->PCOR = row_select[row];    /* drive the active row low */
+//		}
+//
+//		if(PORTA -> ISFR & 1 << 17){
+//			col = 0;
+//		}
+//
+//		if(PORTA -> ISFR & 1 << 16){
+//			col = 1;
+//		}
+//
+//		if(PORTA -> ISFR & 1 << 13){
+//			col = 2;
+//		}
+//
+//		if(PORTA -> ISFR & 1 << 12){
+//			col = 3;
+//		}
+//
+//		PORTA->ISFR = ~0x00000000;//clear interrupt flag
+//		UpdateBuffer(row, col);
+//	}
+//}
 
-		if(PORTA -> ISFR & 1 << 17){
-			col = 0;
-		}
-
-		if(PORTA -> ISFR & 1 << 16){
-			col = 1;
-		}
-
-		if(PORTA -> ISFR & 1 << 13){
-			col = 2;
-		}
-
-		if(PORTA -> ISFR & 1 << 12){
-			col = 3;
-		}
-
-		PORTA->ISFR = ~0x00000000;//clear interrupt flag
-		UpdateBuffer(row, col);
-	}
-}
-
-//TODO delete this function and modify for port a
-char keypad_getkey(void)
-{
-    int row, col;
-    const char row_select[] = {1 << 1, 1 << 2, 1 << 4, 1 << 5};//0x01, 0x02, 0x04, 0x08}; //TODO change these
-
-    /* check to see any key pressed */
-    PTA->PDDR |= 1 << 1 | 1 << 2 | 1 << 4 | 1 << 5;          /* enable all rows */
-    PTA->PCOR = 1 << 1 | 1 << 2 | 1 << 4 | 1 << 5;
-    delayMs(200);                 /* wait for signal return */
-    col = PTA->PDIR & (1 << 12 | 1 << 13 | 1 << 16 | 1 << 17);     /* read all columns */
-    PTA->PDDR = 0;              /* disable all rows */
-    if (col == 0x33000)
-        return 0;               /* no key pressed */
-
-    /* If a key is pressed, it gets here to find out which key.
-     * It activates one row at a time and read the input to see
-     * which column is active. */
-    for (row = 0; row < 4; row++)
-    {
-        PTA->PDDR = 0;                  /* disable all rows */
-        PTA->PDDR |= row_select[row];   /* enable one row */
-        PTA->PCOR = row_select[row];    /* drive the active row low */
-        delayMs(200);                     /* wait for signal to settle */
-        col = PTA->PDIR & 0x33000;         /* read all columns */
-        if (col != 0x33000) break;         /* if one of the input is low, some key is pressed. */
-    }
-    PTA->PDDR = 0;                      /* disable all rows */
-    if (row == 4)
-        return 0;                       /* if we get here, no key is pressed */
-
-    /* gets here when one of the rows has key pressed, check which column it is */
-    if (col == 1 << 12) return row * 4 + 1;    /* key in column 0 */
-    if (col == 1 << 13) return row * 4 + 2;    /* key in column 1 */
-    if (col == 1 << 16) return row * 4 + 3;    /* key in column 2 */
-    if (col == 1 << 17) return row * 4 + 4;    /* key in column 3 */
-
-    return 0;   /* just to be safe */
-}
-
-//TODO delete this function
-void keypad_init(void)
-{
-    SIM->SCGC5   |= 1 << 9;       /* enable clock to Port A */
-    //enable pins as GPIO
-    PORTA->PCR[17] = 0x103;     ///* make PTA17 pin as GPIO and enable pullup
-    PORTA->PCR[16] = 0x103;     ///* make PTA16 pin as GPIO and enable pullup
-    PORTA->PCR[13] = 0x103;		///* make PTA13 pin as GPIO and enable pullup
-    PORTA->PCR[12] = 0x103;     ///* make PTA12 pin as GPIO and enable pullup
-    PORTA->PCR[5] = 0x103;      ///* make PTA5 pin as GPIO and enable pullup*/
-    PORTA->PCR[4] = 0x103;      ///* make PTA4 pin as GPIO and enable pullup*/
-    PORTA->PCR[2] = 0x103;      ///* make PTA2 pin as GPIO and enable pullup*/
-    PORTA->PCR[1] = 0x103;      ///* make PTA1 pin as GPIO and enable pullup*/
-    PTA->PDDR |= 1 << 5 | 1 << 4 | 1 << 2 | 1 << 1; //make PTA5,4,2,1 as output pins
-}
 
 //TODO uncomment this code for interrupt keypad and check functionality
 /* this function initializes PortC that is connected to the keypad.
