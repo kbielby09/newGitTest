@@ -131,58 +131,16 @@ void TPM0_IRQHandler(void) {
 
 	if(mode == 1){			//check if mode 1 will be used
 		//voltage = result * 3300/4096;		//calculate voltage
-//		sprintf(buffer, "\r\nvoltage = %d mV", voltage); /* convert to string */
-//		UART0_puts(buffer);			//display voltage information
-		sprintf(buffer, "\r\nchoice = %d", choice);
-		UART0_puts(buffer);		//display voltage information
+//				//display voltage information
 
-		switch(choice){
-		case 1:
-			ADC0->SC1[0] = 1 << 6;
-			break;
-		case 2:
-			ADC0->SC1[0] = 0x43;							//choose potentiometer as input (PTE22)
-			break;
-//		case 3:
-//			sprintf(buffer, "\r\nPhotoResult = %d", PhotoResult);
-//			UART0_puts(buffer);
-//			sprintf(buffer, "\r\nPotResult = %d", PotResult);
-//			UART0_puts(buffer);
-//
-////			if(PhotoResult < 2483 && PhotoResult > 1614){
-////				sprintf(buffer, "\r\nAre we here");
-//				UART0_puts(buffer);
-//				result = (60000 * PhotoResult) / 4096;
-//				sprintf(buffer, "\r\nresult = %d", result);
-//				UART0_puts(buffer);
-//				sprintf(buffer, "\r\nPhotoResult = %d", PhotoResult);
-//				UART0_puts(buffer);
-//				sprintf(buffer, "\r\nhere?");
-//				UART0_puts(buffer);
-//				//TPM0->CONTROLS[1].CnV = 60000 * (PhotoResult / 4096);//1620 + PhotoResult*3/2;  /* Set up channel value between 2.5% and 12.5%*/
-//				//delayMs(60000);
-//			}
-//			else{
-//				sprintf(buffer, "\r\nno we are here");
-//				UART0_puts(buffer);
-//				result = (60000 * PotResult) / 4096;
-//				sprintf(buffer, "\r\nresult = %d", result);
-//								UART0_puts(buffer);
-////				TPM0->CONTROLS[1].CnV = 60000 * (PotResult / 4096);//1620 + PotResult*3/2;  /* Set up channel value between 2.5% and 12.5%*/
-//				//delayMs(600);
-////			}
-//			choice = 1;
-//			ADC0->SC1[0] = 1 << 6;							//Choose photoresistors as input (PTE20)
-//			break;
-		}
+		choice = 1;
+		ADC0->SC1[0] = 1 << 6;		//chose photoresistor as intput (PTE20)
+		choice = 2;
+		ADC0->SC1[0] = 0x43;		//choose potentiometer as input (PTE22)
 
 	}//end if
 
-//	sprintf(buffer, "\r\nIn here now");
-//	UART0_puts(buffer);
-//	TPM0->CONTROLS[1].CnV = result;//1500 + result*3/2;  /* Set up channel value between 2.5% and 12.5%*/
-
-	TPM0->CONTROLS[1].CnSC |= TPM_CnSC_CHF_MASK; //Clear the CHF flag for TPM0_CH1
+//	TPM0->CONTROLS[1].CnSC |= TPM_CnSC_CHF_MASK; //Clear the CHF flag for TPM0_CH1
 }
 
 //PWM initialization function
@@ -203,6 +161,36 @@ void PWM_init(void)
     NVIC->ISER[0] |= 1 << 17;		  /*enable IRQ17 (bit 17 of ISER[0])*/
 }
 
+//event handler for ADC0
+void ADC0_IRQHandler(void){
+	int voltage;
+
+	if(mode == 1){			//check if mode 1 will be used
+		//voltage = result * 3300/4096;		//calculate voltage
+//		sprintf(buffer, "\r\nvoltage = %d mV", voltage); /* convert to string */
+//		UART0_puts(buffer);			//display voltage information
+		
+
+		switch(choice){
+		case 1:
+			PhotoResult = ADC0->R[0];
+			break;
+		case 2:
+			PotResult = ADC0->R[0];
+			choice = 1;
+			if(PhotoResult < 2483 && PhotoResult > 1614){
+				choice = 1;
+				TPM0->CONTROLS[1].CnV = (60000 * PhotoResult) / 4096;
+			}
+			else{
+				choice = 1;
+				TPM0->CONTROLS[1].CnV = (60000 * PotResult) / 4096;//1620 + PotResult*3/2;  /* Set up channel value between 2.5% and 12.5%*/
+			}
+			break;
+		}//end switch
+
+	}//end if
+}//end function
 
 //Port D interrupt handler
 //void PORTD_IRQHandler(void){
@@ -380,99 +368,7 @@ void ADC0_init(void)
 
 }
 
-//event handler for ADC0
-void ADC0_IRQHandler(void){
-	int voltage;
 
-//	if(mode == 1){			//check if mode 1 will be used
-//		//voltage = result * 3300/4096;		//calculate voltage
-////		sprintf(buffer, "\r\nvoltage = %d mV", voltage); /* convert to string */
-////		UART0_puts(buffer);			//display voltage information
-//		sprintf(buffer, "\r\nchoice = %d", choice);
-//		UART0_puts(buffer);		//display voltage information
-//
-//		switch(choice){
-//		case 1:
-//			sprintf(buffer, "\r\nPhotoresistor");
-//			UART0_puts(buffer);
-//			choice = 2;
-//			ADC0->SC1[0] = 1 << 6;
-//			break;
-//		case 2:
-//			PhotoResult = ADC0->R[0];
-//			sprintf(buffer, "\r\nPotentiometer");
-//			UART0_puts(buffer);
-//			choice = 3;
-//			ADC0->SC1[0] = 0x43;							//choose potentiometer as input (PTE22)
-//			break;
-//		case 3:
-//			sprintf(buffer, "\r\nIn here");
-//			UART0_puts(buffer);
-//			sprintf(buffer, "\r\nPhotoResult = %d", PhotoResult);
-//			UART0_puts(buffer);
-//			sprintf(buffer, "\r\nPotResult = %d", PotResult);
-//			UART0_puts(buffer);
-//			PotResult = ADC0->R[0];
-//			if(PhotoResult < 2483 && PhotoResult > 1614){
-//				sprintf(buffer, "\r\nAre we here");
-//				UART0_puts(buffer);
-//				result = (60000 * PhotoResult) / 4096;
-//				sprintf(buffer, "\r\nresult = %d", result);
-//				UART0_puts(buffer);
-//				sprintf(buffer, "\r\nPhotoResult = %d", PhotoResult);
-//				UART0_puts(buffer);
-//				sprintf(buffer, "\r\nhere?");
-//				UART0_puts(buffer);
-//				//TPM0->CONTROLS[1].CnV = 60000 * (PhotoResult / 4096);//1620 + PhotoResult*3/2;  /* Set up channel value between 2.5% and 12.5%*/
-//				//delayMs(60000);
-//			}
-//			else{
-//				sprintf(buffer, "\r\nno we are here");
-//				UART0_puts(buffer);
-//				result = (60000 * PotResult) / 4096;
-//				sprintf(buffer, "\r\nresult = %d", result);
-//								UART0_puts(buffer);
-////				TPM0->CONTROLS[1].CnV = 60000 * (PotResult / 4096);//1620 + PotResult*3/2;  /* Set up channel value between 2.5% and 12.5%*/
-//				//delayMs(600);
-//			}
-//			choice = 1;
-//			ADC0->SC1[0] = 1 << 6;							//Choose photoresistors as input (PTE20)
-//			break;
-//		}
-//
-//	}//end if
-
-	if(mode == 1){			//check if mode 1 will be used
-		//voltage = result * 3300/4096;		//calculate voltage
-//		sprintf(buffer, "\r\nvoltage = %d mV", voltage); /* convert to string */
-//		UART0_puts(buffer);			//display voltage information
-		sprintf(buffer, "\r\nchoice = %d", choice);
-		UART0_puts(buffer);		//display voltage information
-
-		switch(choice){
-		case 1:
-			PhotoResult = ADC0->R[0];
-			choice = 2;
-			break;
-		case 2:
-			PotResult = ADC0->R[0];
-
-			if(PhotoResult < 2483 && PhotoResult > 1614){
-//				result = (60000 * PhotoResult) / 4096;
-				TPM0->CONTROLS[1].CnV = 60000 * (PhotoResult / 4096);//1620 + PhotoResult*3/2;  /* Set up channel value between 2.5% and 12.5%*/
-			}
-			else{
-//				result = (60000 * PotResult) / 4096;
-				TPM0->CONTROLS[1].CnV = 60000 * (PotResult / 4096);//1620 + PotResult*3/2;  /* Set up channel value between 2.5% and 12.5%*/
-				//delayMs(600);
-			}
-			choice = 1;
-//			ADC0->SC1[0] = 1 << 6;							//Choose photoresistors as input (PTE20)
-			break;
-		}//end switch
-
-	}//end if
-}
 
 //
 //void LCD_Write(){
